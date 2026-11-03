@@ -205,3 +205,12 @@ svg.i{width:24px;height:24px;fill:currentColor;flex:none}
 #setList .sw.on{background:#ff3d6e}
 #setList .sw.on::after{left:21px}
 #setList .val{flex:none;color:#8a8c99;font-size:14px}
+
+/* teclado propio del chat (las letras cambian de sitio) */
+#cIn{flex-wrap:wrap}
+#cIn input{min-width:0}
+#kb{flex:0 0 100%;display:grid;grid-template-columns:repeat(9,1fr);gap:5px;margin-top:2px}
+#cIn #kb button{width:auto;height:38px;border-radius:8px;background:#f1f1f6;color:#222;font-size:17px;font-weight:600;text-transform:uppercase;box-shadow:0 1px 0 #d4d4de;touch-action:manipulation}
+#cIn #kb button:active{background:#e1e1ea}
+#cIn #kb .sp{grid-column:span 7;text-transform:none;font-size:14px;color:#777}
+#cIn #kb .bk{grid-column:span 2}

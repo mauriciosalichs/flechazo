@@ -1,3 +1,11 @@
+/* =============== configuración del chat (edita estos valores) =============== */
+const CHAT_PAUSE=[2600,4400];       // pausa entre mensajes de Mauricio (ms), mín y máx
+const CHAT_TYPE_MS_PER_CHAR=62;     // lo que tarda "escribiendo…" por carácter (ms)
+const CHAT_TYPE_MIN_MAX=[1100,3600];// duración mínima y máxima de "escribiendo…" (ms)
+const CHAT_KB_SHUFFLE_MS=900;       // cada cuánto se reordenan las letras del teclado (ms)
+const CHAT_RUSH_LINES=8;            // cuántos mensajes va más rápido Mauricio tras un texto ininteligible
+const GARBLE_REPLIES=['No te entiendo. ¿Estás bien?','Eso no son palabras. Me estás preocupando.','¿Qué te pasa? ¿Estás herido? No te muevas.','Algo no va bien. Voy para allá ahora mismo.','Tranquilo, {n}. Ya voy. Es por tu bien.','Me tienes muy preocupado. Voy más rápido.','Aguanta. Estoy a nada de llegar.'];
+
 /* =============== match -> chat =============== */
 function goMatch(why){
  S.why=why||'direct'; S.phase='match'; show('match'); A.tone(220,.9,'sawtooth',.15,0,110); A.thump(.6); vib([100,50,300]);
@@ -20,19 +28,43 @@ function bubble(from,text,img){
 function setDist(txt,i){ S.dist=txt; const s=$('#hSt'); s.textContent=txt; s.className=i>.8?'near':'far'; if(i!==undefined) setI(i); chatAvatar() }
 function chatAvatar(){ const i=S.intensity; $('#hAv').src=IMG[i<.55?'A1':i<.7?'A2':i<.85?'B3':'D3'] }
 function setComposer(m){ ['cIn','cChips','cLocked','cDoor'].forEach(id=>$('#'+id).classList.remove('on')); $('#'+m).classList.add('on'); $('#chat').classList.toggle('hot',m==='cLocked'||m==='cDoor') }
-async function reply(text,delay=0){ if(S.phase!=='chat')return; await rawSleep(delay||rnd(500,1100)); setTyping(1); await rawSleep(clamp(T(text).length*30,650,1800)); setTyping(-1); if(S.phase!=='chat')return; bubble('him',T(text)) }
+async function reply(text,delay=0){ if(S.phase!=='chat')return; await rawSleep(delay||rnd(1000,1900)); setTyping(1); await rawSleep(clamp(T(text).length*CHAT_TYPE_MS_PER_CHAR,CHAT_TYPE_MIN_MAX[0],CHAT_TYPE_MIN_MAX[1])); setTyping(-1); if(S.phase!=='chat')return; bubble('him',T(text)) }
 async function say(text,o={}){
  if(S.phase!=='chat')return;
  if(o.pre)await sleep(o.pre);
- setTyping(1); await sleep(clamp(T(text).length*34,700,2400));
+ setTyping(1); await sleep(clamp(T(text).length*CHAT_TYPE_MS_PER_CHAR,CHAT_TYPE_MIN_MAX[0],CHAT_TYPE_MIN_MAX[1]));
  if(S.phase!=='chat'){setTyping(-1);return}
  setTyping(-1); bubble('him',T(text),o.img?IMG[o.img]:null);
  if(S.rush>0)S.rush--;
- await sleep(o.gap||rnd(1100,2300));
+ await sleep(o.gap||rnd(CHAT_PAUSE[0],CHAT_PAUSE[1]));
 }
-const FREE=['No me escribas eso. Mírame.','Eso ya lo sé.','Mentira.','Respondes tarde, pero respondes. Me gusta.','No hace falta que escribas. Ya voy.','Sigue escribiendo. Me gustan los puntitos.','Perdona, no leí. Estaba mirándote.'];
 const CHIPS={'Vale':['Eso es todo lo que necesitaba oír.','Ya lo habías dicho.','Buena elección.'],'No puedo hoy':['Sí puedes. Ya quedamos.','No era una pregunta.','Hoy. Ahora. Conmigo.'],'¿Quién eres?':['El que va a verte hoy.','Mauricio. Lo leíste en mi perfil tres veces.','Ya lo sabes. Ya lo sabes. Ya lo sabes.']};
-$('#cIn').addEventListener('submit',e=>{ e.preventDefault(); const v=$('#cText').value.trim(); if(!v||S.phase!=='chat')return; $('#cText').value=''; bubble('me',v); S.free=(S.free||0)+1; reply(FREE[(S.free-1)%FREE.length]) });
+/* teclado con letras que cambian de sitio + mensajes ininteligibles */
+const KB_LETTERS='abcdefghijklmnñopqrstuvwxyz'.split('');
+function buildKb(){
+ const kb=$('#kb'); kb.innerHTML='';
+ shuffle(KB_LETTERS).forEach(ch=>{ const b=document.createElement('button'); b.type='button'; b.dataset.k=ch; b.textContent=ch; kb.append(b) });
+ const sp=document.createElement('button'); sp.type='button'; sp.className='sp'; sp.dataset.k=' '; sp.textContent='espacio';
+ const bk=document.createElement('button'); bk.type='button'; bk.className='bk'; bk.dataset.k='del'; bk.textContent='⌫';
+ kb.append(sp,bk);
+}
+function shuffleKb(){ const kb=$('#kb'); const keys=[...kb.querySelectorAll('button[data-k]:not(.sp):not(.bk)')]; shuffle(keys).forEach(k=>kb.insertBefore(k,kb.querySelector('.sp'))) }
+$('#kb').addEventListener('pointerdown',e=>{
+ const b=e.target.closest('button[data-k]'); if(!b||S.phase!=='chat')return; e.preventDefault();
+ const t=$('#cText'); const k=b.dataset.k; A.pop();
+ if(k==='del')t.value=t.value.slice(0,-1); else if(t.value.length<t.maxLength)t.value+=k;
+});
+buildKb();
+setInterval(()=>{ if(S.phase==='chat'&&$('#cIn').classList.contains('on'))shuffleKb() },CHAT_KB_SHUFFLE_MS);
+function garble(v){
+ let out=v.replace(/\S/g,()=>pick(KB_LETTERS));
+ return out===v?out+pick(KB_LETTERS):out;
+}
+$('#cIn').addEventListener('submit',e=>{
+ e.preventDefault(); const v=$('#cText').value.trim(); if(!v||S.phase!=='chat')return; $('#cText').value='';
+ bubble('me',garble(v)); S.garble=(S.garble||0)+1; S.rush=Math.max(S.rush,CHAT_RUSH_LINES); setI(Math.max(S.intensity,.58));
+ reply(GARBLE_REPLIES[(S.garble-1)%GARBLE_REPLIES.length]);
+});
 function buildChips(){ const b=$('#cChips'); b.innerHTML=''; Object.keys(CHIPS).forEach(k=>{ const x=document.createElement('button'); x.textContent=k; x.onclick=()=>{ if(S.phase!=='chat')return; bubble('me',k); const n=S.chipN[k]=(S.chipN[k]||0)+1; reply(CHIPS[k][(n-1)%3]) }; b.append(x) }) }
 $('#cBack').onclick=()=>{ if(S.phase!=='chat')return; A.buzz(); shakeEl($('#chat')); S.escAt=0; escape('back') };
 $('#cMenu').onclick=()=>{ if(S.phase==='chat')$('#sheet').classList.add('on') };
